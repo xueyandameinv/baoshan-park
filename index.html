@@ -149,6 +149,17 @@ html, body {
   .nav-btn { width: 50px; height: 100px; font-size: 28px; }
 }
 
+/* Rotated state for landscape viewing on mobile */
+.slide.rotated {
+  transform: none !important;
+  opacity: 1 !important;
+}
+.slide.rotated img {
+  max-width: none; max-height: none;
+  transform: rotate(90deg);
+  transform-origin: center center;
+}
+
 /* Fullscreen adjustments */
 :fullscreen { background: #1a1a1a; }
 :-webkit-full-screen { background: #1a1a1a; }
@@ -179,6 +190,7 @@ html, body {
   <div class="toolbar">
     <button onclick="goTo(0)" title="首页">&#x23EE;</button>
     <button onclick="toggleThumbs()" title="目录">&#x2630;</button>
+    <button onclick="toggleRotate()" title="横屏" id="rotateBtn">&#x21BB;</button>
     <button onclick="toggleFullscreen()" title="全屏">&#x26F6;</button>
     <button onclick="goTo(totalSlides-1)" title="末页">&#x23ED;</button>
   </div>
@@ -201,6 +213,7 @@ let currentSlide = 0;
 let slides = [];
 let touchStartX = 0, touchStartY = 0, touchDeltaX = 0, isSwiping = false;
 let idleTimer = null;
+let isRotated = false;
 
 // Preload images
 const images = [];
@@ -386,20 +399,43 @@ function goTo(idx) {
 
 function updateSlides() {
   const w = window.innerWidth;
+  const h = window.innerHeight;
   slides.forEach(function(s, i) {
     s.style.transition = 'transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.35s ease';
-    if (i === currentSlide) {
-      s.style.transform = 'translateX(0)';
-      s.style.opacity = '1';
-      s.style.zIndex = '2';
-    } else if (i < currentSlide) {
-      s.style.transform = 'translateX(-' + w + 'px)';
-      s.style.opacity = '0';
-      s.style.zIndex = '1';
+    if (isRotated) {
+      if (i === currentSlide) {
+        s.className = 'slide rotated';
+        const img = s.querySelector('img');
+        // Scale rotated image to fill screen
+        const scale = Math.max(w / h, h / w);
+        img.style.width = h + 'px';
+        img.style.height = w + 'px';
+        img.style.transform = 'rotate(90deg)';
+        img.style.transformOrigin = 'center center';
+        s.style.transform = 'none';
+        s.style.opacity = '1';
+        s.style.zIndex = '2';
+      } else {
+        s.className = 'slide';
+        s.style.transform = 'translateX(' + w + 'px)';
+        s.style.opacity = '0';
+        s.style.zIndex = '1';
+      }
     } else {
-      s.style.transform = 'translateX(' + w + 'px)';
-      s.style.opacity = '0';
-      s.style.zIndex = '1';
+      s.className = 'slide';
+      if (i === currentSlide) {
+        s.style.transform = 'translateX(0)';
+        s.style.opacity = '1';
+        s.style.zIndex = '2';
+      } else if (i < currentSlide) {
+        s.style.transform = 'translateX(-' + w + 'px)';
+        s.style.opacity = '0';
+        s.style.zIndex = '1';
+      } else {
+        s.style.transform = 'translateX(' + w + 'px)';
+        s.style.opacity = '0';
+        s.style.zIndex = '1';
+      }
     }
   });
   
@@ -449,6 +485,13 @@ function toggleFullscreen() {
     if (document.exitFullscreen) document.exitFullscreen();
     else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
   }
+}
+
+function toggleRotate() {
+  isRotated = !isRotated;
+  document.getElementById('rotateBtn').style.background = isRotated ? 'rgba(74,158,255,0.5)' : '';
+  updateSlides();
+  resetIdle();
 }
 
 function resetIdle() {
