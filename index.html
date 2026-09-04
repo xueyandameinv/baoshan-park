@@ -394,53 +394,65 @@ function updateSlides() {
     s.style.transition = 'transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.35s ease';
     
     if (isFillMode && i === currentSlide) {
-      // Fill mode: current slide fills entire screen, rotated 90deg
+      // Fill mode: image rotates 90° and fills entire screen
       const img = s.querySelector('img');
-      s.style.transform = 'none';
-      s.style.opacity = '1';
-      s.style.zIndex = '2';
-      s.style.width = '100vw';
-      s.style.height = '100vh';
+      
+      // Make slide cover entire viewport
       s.style.position = 'fixed';
       s.style.top = '0';
       s.style.left = '0';
+      s.style.width = '100vw';
+      s.style.height = '100vh';
+      s.style.transform = 'none';
+      s.style.opacity = '1';
+      s.style.zIndex = '1000';
+      s.style.display = 'flex';
+      s.style.alignItems = 'center';
+      s.style.justifyContent = 'center';
+      s.style.overflow = 'hidden';
+      s.style.background = '#000';
       
-      // Calculate scale to fill screen
-      const imgW = 1920; // original image width (landscape)
-      const imgH = 1080; // original image height (landscape)
-      // After 90deg rotation, image dimensions swap
-      // We need rotated image to cover the screen
-      const scale = Math.max(w / imgH, h / imgW);
-      const displayW = imgH * scale;
-      const displayH = imgW * scale;
-      
+      // Rotate image 90° and make it fill the screen
+      // After rotation, width becomes height and vice versa
+      img.style.position = 'absolute';
+      img.style.top = '50%';
+      img.style.left = '50%';
+      img.style.transform = 'translate(-50%, -50%) rotate(90deg)';
+      img.style.transformOrigin = 'center center';
+      img.style.width = '100vh';  // swapped: use viewport height for width
+      img.style.height = '100vw'; // swapped: use viewport width for height
       img.style.maxWidth = 'none';
       img.style.maxHeight = 'none';
-      img.style.width = displayW + 'px';
-      img.style.height = displayH + 'px';
-      img.style.transform = 'rotate(90deg)';
-      img.style.transformOrigin = 'center center';
-      img.style.boxShadow = 'none';
       img.style.objectFit = 'cover';
+      img.style.boxShadow = 'none';
     } else {
       // Normal mode: vertical slide positioning
-      s.style.transform = '';
-      s.style.opacity = '';
-      s.style.zIndex = '';
-      s.style.width = '';
-      s.style.height = '';
       s.style.position = '';
       s.style.top = '';
       s.style.left = '';
+      s.style.width = '';
+      s.style.height = '';
+      s.style.transform = '';
+      s.style.opacity = '';
+      s.style.zIndex = '';
+      s.style.display = '';
+      s.style.alignItems = '';
+      s.style.justifyContent = '';
+      s.style.overflow = '';
+      s.style.background = '';
       
       const img = s.querySelector('img');
-      img.style.maxWidth = '100%';
-      img.style.maxHeight = '100%';
+      img.style.position = '';
+      img.style.top = '';
+      img.style.left = '';
+      img.style.transform = '';
+      img.style.transformOrigin = '';
       img.style.width = '';
       img.style.height = '';
-      img.style.transform = '';
-      img.style.boxShadow = '';
+      img.style.maxWidth = '100%';
+      img.style.maxHeight = '100%';
       img.style.objectFit = '';
+      img.style.boxShadow = '';
       
       if (i === currentSlide) {
         s.style.transform = 'translateY(0)';
