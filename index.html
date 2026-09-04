@@ -36,25 +36,25 @@ html, body {
   box-shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
 
-/* Navigation arrows - TOP/BOTTOM for vertical swipe */
+/* Navigation arrows */
 .nav-btn {
-  position: fixed; left: 50%; transform: translateX(-50%);
-  width: 80px; height: 44px; display: flex; align-items: center; justify-content: center;
+  position: fixed;
+  width: 44px; height: 80px; display: flex; align-items: center; justify-content: center;
   background: rgba(0,0,0,0.3); border: none; color: white; font-size: 24px;
-  cursor: pointer; z-index: 100; border-radius: 8px;
-  transition: background 0.2s;
+  cursor: pointer; z-index: 1100; border-radius: 8px;
+  transition: background 0.2s, left 0.3s, right 0.3s, top 0.3s, bottom 0.3s, transform 0.3s;
   -webkit-tap-highlight-color: transparent;
 }
 .nav-btn:hover { background: rgba(0,0,0,0.6); }
-.nav-btn.prev { top: 8px; }
-.nav-btn.next { bottom: 56px; }
+.nav-btn.prev { top: 50%; left: 8px; transform: translateY(-50%); }
+.nav-btn.next { top: 50%; right: 8px; transform: translateY(-50%); }
 .nav-btn:disabled { opacity: 0.2; cursor: default; }
 
 /* Top bar */
 .top-bar {
   position: fixed; top: 0; left: 0; right: 0;
   height: 48px; display: flex; align-items: center; justify-content: space-between;
-  padding: 0 16px; z-index: 100;
+  padding: 0 16px; z-index: 1100;
   background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
   color: white; font-size: 14px;
   transition: opacity 0.3s;
@@ -67,7 +67,7 @@ html, body {
   position: fixed; bottom: 0; left: 0; right: 0;
   height: 56px; display: flex; align-items: center; justify-content: center; gap: 24px;
   background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
-  z-index: 100; transition: opacity 0.3s;
+  z-index: 1100; transition: opacity 0.3s;
 }
 .toolbar button {
   width: 40px; height: 40px; border-radius: 50%;
@@ -82,7 +82,7 @@ html, body {
 .progress-bar {
   position: fixed; bottom: 56px; left: 16px; right: 16px;
   height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px;
-  z-index: 100; overflow: hidden;
+  z-index: 1100; overflow: hidden;
 }
 .progress-fill {
   height: 100%; background: rgba(255,255,255,0.7); border-radius: 2px;
@@ -169,8 +169,8 @@ html, body {
     <span class="page-num" id="pageNum">1 / 24</span>
   </div>
 
-  <button class="nav-btn prev" id="prevBtn" onclick="goTo(currentSlide-1)">&#9650;</button>
-  <button class="nav-btn next" id="nextBtn" onclick="goTo(currentSlide+1)">&#9660;</button>
+  <button class="nav-btn prev" id="prevBtn" onclick="goTo(currentSlide-1)">&#9664;</button>
+  <button class="nav-btn next" id="nextBtn" onclick="goTo(currentSlide+1)">&#9654;</button>
 
   <div class="slide-container" id="slideContainer"></div>
 
@@ -197,7 +197,7 @@ const IMG_BASE = 'page_';
 let totalSlides = TOTAL;
 let currentSlide = 0;
 let slides = [];
-let touchStartX = 0, touchStartY = 0, touchDeltaY = 0, isSwiping = false;
+let touchStartX = 0, touchStartY = 0, touchDeltaX = 0, touchDeltaY = 0, isSwiping = false;
 let idleTimer = null;
 let isFillMode = false;
 
@@ -267,9 +267,14 @@ function init() {
   
   // Keyboard
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'ArrowUp') goTo(currentSlide - 1);
-    else if (e.key === 'ArrowDown' || e.key === ' ') goTo(currentSlide + 1);
-    else if (e.key === 'Home') goTo(0);
+    if (isFillMode) {
+      if (e.key === 'ArrowLeft') goTo(currentSlide - 1);
+      else if (e.key === 'ArrowRight' || e.key === ' ') goTo(currentSlide + 1);
+    } else {
+      if (e.key === 'ArrowUp') goTo(currentSlide - 1);
+      else if (e.key === 'ArrowDown' || e.key === ' ') goTo(currentSlide + 1);
+    }
+    if (e.key === 'Home') goTo(0);
     else if (e.key === 'End') goTo(totalSlides - 1);
     else if (e.key === 'Escape') { 
       const panel = document.getElementById('thumbPanel');
@@ -290,6 +295,7 @@ function init() {
 function onTouchStart(e) {
   touchStartX = e.touches[0].clientX;
   touchStartY = e.touches[0].clientY;
+  touchDeltaX = 0;
   touchDeltaY = 0;
   isSwiping = false;
 }
@@ -298,85 +304,148 @@ function onTouchMove(e) {
   const dx = e.touches[0].clientX - touchStartX;
   const dy = e.touches[0].clientY - touchStartY;
   
-  // Detect vertical swipe (up/down)
-  if (!isSwiping && Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
-    isSwiping = true;
-  }
-  
-  if (isSwiping) {
-    e.preventDefault();
-    touchDeltaY = dy;
-    const current = slides[currentSlide];
-    const h = window.innerHeight;
-    current.style.transition = 'none';
-    current.style.transform = 'translateY(' + dy + 'px)';
-    current.style.opacity = 1 - Math.abs(dy) / h * 0.3;
+  if (isFillMode) {
+    // Fill mode: horizontal swipe (left/right)
+    if (!isSwiping && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+      isSwiping = true;
+    }
     
-    // Show peek of adjacent slide
-    if (dy < 0 && currentSlide < totalSlides - 1) {
-      // Swiping up - show next slide
-      slides[currentSlide + 1].style.transition = 'none';
-      slides[currentSlide + 1].style.transform = 'translateY(' + (h + dy) + 'px)';
-      slides[currentSlide + 1].style.opacity = 0.7 + dy / h * 0.3;
-    } else if (dy > 0 && currentSlide > 0) {
-      // Swiping down - show prev slide
-      slides[currentSlide - 1].style.transition = 'none';
-      slides[currentSlide - 1].style.transform = 'translateY(' + (-h + dy) + 'px)';
-      slides[currentSlide - 1].style.opacity = 0.7 - dy / h * 0.3;
+    if (isSwiping) {
+      e.preventDefault();
+      touchDeltaX = dx;
+      const current = slides[currentSlide];
+      const w = window.innerWidth;
+      current.style.transition = 'none';
+      current.style.transform = 'translateX(' + dx + 'px)';
+      current.style.opacity = 1 - Math.abs(dx) / w * 0.3;
+      
+      if (dx < 0 && currentSlide < totalSlides - 1) {
+        slides[currentSlide + 1].style.transition = 'none';
+        slides[currentSlide + 1].style.transform = 'translateX(' + (w + dx) + 'px)';
+        slides[currentSlide + 1].style.opacity = 0.7 + dx / w * 0.3;
+      } else if (dx > 0 && currentSlide > 0) {
+        slides[currentSlide - 1].style.transition = 'none';
+        slides[currentSlide - 1].style.transform = 'translateX(' + (-w + dx) + 'px)';
+        slides[currentSlide - 1].style.opacity = 0.7 - dx / w * 0.3;
+      }
+    }
+  } else {
+    // Normal mode: vertical swipe (up/down)
+    if (!isSwiping && Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
+      isSwiping = true;
+    }
+    
+    if (isSwiping) {
+      e.preventDefault();
+      touchDeltaY = dy;
+      const current = slides[currentSlide];
+      const h = window.innerHeight;
+      current.style.transition = 'none';
+      current.style.transform = 'translateY(' + dy + 'px)';
+      current.style.opacity = 1 - Math.abs(dy) / h * 0.3;
+      
+      if (dy < 0 && currentSlide < totalSlides - 1) {
+        slides[currentSlide + 1].style.transition = 'none';
+        slides[currentSlide + 1].style.transform = 'translateY(' + (h + dy) + 'px)';
+        slides[currentSlide + 1].style.opacity = 0.7 + dy / h * 0.3;
+      } else if (dy > 0 && currentSlide > 0) {
+        slides[currentSlide - 1].style.transition = 'none';
+        slides[currentSlide - 1].style.transform = 'translateY(' + (-h + dy) + 'px)';
+        slides[currentSlide - 1].style.opacity = 0.7 - dy / h * 0.3;
+      }
     }
   }
 }
 
 function onTouchEnd() {
   if (!isSwiping) return;
-  const threshold = window.innerHeight * 0.2;
   
-  if (touchDeltaY < -threshold && currentSlide < totalSlides - 1) {
-    goTo(currentSlide + 1);
-  } else if (touchDeltaY > threshold && currentSlide > 0) {
-    goTo(currentSlide - 1);
+  if (isFillMode) {
+    const threshold = window.innerWidth * 0.2;
+    if (touchDeltaX < -threshold && currentSlide < totalSlides - 1) {
+      goTo(currentSlide + 1);
+    } else if (touchDeltaX > threshold && currentSlide > 0) {
+      goTo(currentSlide - 1);
+    } else {
+      updateSlides();
+    }
   } else {
-    updateSlides();
+    const threshold = window.innerHeight * 0.2;
+    if (touchDeltaY < -threshold && currentSlide < totalSlides - 1) {
+      goTo(currentSlide + 1);
+    } else if (touchDeltaY > threshold && currentSlide > 0) {
+      goTo(currentSlide - 1);
+    } else {
+      updateSlides();
+    }
   }
   isSwiping = false;
+  touchDeltaX = 0;
   touchDeltaY = 0;
 }
 
-// Mouse drag (vertical)
-let mouseDown = false, mouseStartY = 0, mouseDeltaY = 0;
+// Mouse drag
+let mouseDown = false, mouseStartX = 0, mouseStartY = 0, mouseDeltaX = 0, mouseDeltaY = 0;
 function onMouseDown(e) {
   if (e.button !== 0) return;
   mouseDown = true;
+  mouseStartX = e.clientX;
   mouseStartY = e.clientY;
+  mouseDeltaX = 0;
   mouseDeltaY = 0;
   document.addEventListener('mousemove', onMouseMove);
   document.addEventListener('mouseup', onMouseUp);
 }
 function onMouseMove(e) {
   if (!mouseDown) return;
-  mouseDeltaY = e.clientY - mouseStartY;
   const current = slides[currentSlide];
-  const h = window.innerHeight;
-  current.style.transition = 'none';
-  current.style.transform = 'translateY(' + mouseDeltaY + 'px)';
-  current.style.opacity = 1 - Math.abs(mouseDeltaY) / h * 0.3;
   
-  if (mouseDeltaY < 0 && currentSlide < totalSlides - 1) {
-    slides[currentSlide + 1].style.transition = 'none';
-    slides[currentSlide + 1].style.transform = 'translateY(' + (h + mouseDeltaY) + 'px)';
-  } else if (mouseDeltaY > 0 && currentSlide > 0) {
-    slides[currentSlide - 1].style.transition = 'none';
-    slides[currentSlide - 1].style.transform = 'translateY(' + (-h + mouseDeltaY) + 'px)';
+  if (isFillMode) {
+    mouseDeltaX = e.clientX - mouseStartX;
+    const w = window.innerWidth;
+    current.style.transition = 'none';
+    current.style.transform = 'translateX(' + mouseDeltaX + 'px)';
+    current.style.opacity = 1 - Math.abs(mouseDeltaX) / w * 0.3;
+    
+    if (mouseDeltaX < 0 && currentSlide < totalSlides - 1) {
+      slides[currentSlide + 1].style.transition = 'none';
+      slides[currentSlide + 1].style.transform = 'translateX(' + (w + mouseDeltaX) + 'px)';
+    } else if (mouseDeltaX > 0 && currentSlide > 0) {
+      slides[currentSlide - 1].style.transition = 'none';
+      slides[currentSlide - 1].style.transform = 'translateX(' + (-w + mouseDeltaX) + 'px)';
+    }
+  } else {
+    mouseDeltaY = e.clientY - mouseStartY;
+    const h = window.innerHeight;
+    current.style.transition = 'none';
+    current.style.transform = 'translateY(' + mouseDeltaY + 'px)';
+    current.style.opacity = 1 - Math.abs(mouseDeltaY) / h * 0.3;
+    
+    if (mouseDeltaY < 0 && currentSlide < totalSlides - 1) {
+      slides[currentSlide + 1].style.transition = 'none';
+      slides[currentSlide + 1].style.transform = 'translateY(' + (h + mouseDeltaY) + 'px)';
+    } else if (mouseDeltaY > 0 && currentSlide > 0) {
+      slides[currentSlide - 1].style.transition = 'none';
+      slides[currentSlide - 1].style.transform = 'translateY(' + (-h + mouseDeltaY) + 'px)';
+    }
   }
 }
 function onMouseUp() {
   mouseDown = false;
   document.removeEventListener('mousemove', onMouseMove);
   document.removeEventListener('mouseup', onMouseUp);
-  const threshold = window.innerHeight * 0.15;
-  if (mouseDeltaY < -threshold && currentSlide < totalSlides - 1) goTo(currentSlide + 1);
-  else if (mouseDeltaY > threshold && currentSlide > 0) goTo(currentSlide - 1);
-  else updateSlides();
+  
+  if (isFillMode) {
+    const threshold = window.innerWidth * 0.15;
+    if (mouseDeltaX < -threshold && currentSlide < totalSlides - 1) goTo(currentSlide + 1);
+    else if (mouseDeltaX > threshold && currentSlide > 0) goTo(currentSlide - 1);
+    else updateSlides();
+  } else {
+    const threshold = window.innerHeight * 0.15;
+    if (mouseDeltaY < -threshold && currentSlide < totalSlides - 1) goTo(currentSlide + 1);
+    else if (mouseDeltaY > threshold && currentSlide > 0) goTo(currentSlide - 1);
+    else updateSlides();
+  }
 }
 
 function goTo(idx) {
@@ -413,18 +482,52 @@ function updateSlides() {
       s.style.background = '#000';
       
       // Rotate image 90° and make it fill the screen
-      // After rotation, width becomes height and vice versa
       img.style.position = 'absolute';
       img.style.top = '50%';
       img.style.left = '50%';
       img.style.transform = 'translate(-50%, -50%) rotate(90deg)';
       img.style.transformOrigin = 'center center';
-      img.style.width = '100vh';  // swapped: use viewport height for width
-      img.style.height = '100vw'; // swapped: use viewport width for height
+      img.style.width = '100vh';
+      img.style.height = '100vw';
       img.style.maxWidth = 'none';
       img.style.maxHeight = 'none';
       img.style.objectFit = 'cover';
       img.style.boxShadow = 'none';
+    } else if (isFillMode) {
+      // Fill mode: non-current slides use horizontal positioning
+      s.style.position = 'fixed';
+      s.style.top = '0';
+      s.style.left = '0';
+      s.style.width = '100vw';
+      s.style.height = '100vh';
+      s.style.display = 'flex';
+      s.style.alignItems = 'center';
+      s.style.justifyContent = 'center';
+      s.style.overflow = 'hidden';
+      s.style.background = '#000';
+      
+      const img = s.querySelector('img');
+      img.style.position = 'absolute';
+      img.style.top = '50%';
+      img.style.left = '50%';
+      img.style.transform = 'translate(-50%, -50%) rotate(90deg)';
+      img.style.transformOrigin = 'center center';
+      img.style.width = '100vh';
+      img.style.height = '100vw';
+      img.style.maxWidth = 'none';
+      img.style.maxHeight = 'none';
+      img.style.objectFit = 'cover';
+      img.style.boxShadow = 'none';
+      
+      if (i < currentSlide) {
+        s.style.transform = 'translateX(-' + w + 'px)';
+        s.style.opacity = '0';
+        s.style.zIndex = '1';
+      } else {
+        s.style.transform = 'translateX(' + w + 'px)';
+        s.style.opacity = '0';
+        s.style.zIndex = '1';
+      }
     } else {
       // Normal mode: vertical slide positioning
       s.style.position = '';
