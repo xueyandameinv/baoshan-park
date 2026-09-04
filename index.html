@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>宝山高新技术产业园 2026</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { 
+  width: 100%; height: 100%; overflow: hidden; 
+  background: #1a1a1a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-user-select: none; user-select: none;
+}
+
+/* Main viewer */
+.viewer {
+  width: 100%; height: 100%; position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.slide-container {
+  width: 100%; height: 100%; position: relative;
+  display: flex; align-items: center; justify-content: center;
+  touch-action: pan-y;
+}
+
+.slide {
+  position: absolute; width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.35s ease;
+  will-change: transform, opacity;
+}
+
+.slide img {
+  max-width: 100%; max-height: 100%; object-fit: contain;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+/* Navigation arrows */
+.nav-btn {
+  position: fixed; top: 50%; transform: translateY(-50%);
+  width: 44px; height: 80px; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.3); border: none; color: white; font-size: 24px;
+  cursor: pointer; z-index: 100; border-radius: 8px;
+  transition: background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.nav-btn:hover { background: rgba(0,0,0,0.6); }
+.nav-btn.prev { left: 8px; }
+.nav-btn.next { right: 8px; }
+.nav-btn:disabled { opacity: 0.2; cursor: default; }
+
+/* Top bar */
+.top-bar {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 48px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; z-index: 100;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+  color: white; font-size: 14px;
+  transition: opacity 0.3s;
+}
+.top-bar .title { font-weight: 500; opacity: 0.9; }
+.top-bar .page-num { opacity: 0.8; font-variant-numeric: tabular-nums; }
+
+/* Bottom toolbar */
+.toolbar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: 56px; display: flex; align-items: center; justify-content: center; gap: 24px;
+  background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
+  z-index: 100; transition: opacity 0.3s;
+}
+.toolbar button {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255,255,255,0.15); border: none; color: white;
+  font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.toolbar button:hover { background: rgba(255,255,255,0.3); }
+
+/* Progress bar */
+.progress-bar {
+  position: fixed; bottom: 56px; left: 16px; right: 16px;
+  height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px;
+  z-index: 100; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: rgba(255,255,255,0.7); border-radius: 2px;
+  transition: width 0.35s ease;
+}
+
+/* Thumbnail panel */
+.thumb-panel {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.95); z-index: 200;
+  display: none; flex-direction: column;
+  opacity: 0; transition: opacity 0.3s;
+}
+.thumb-panel.show { display: flex; opacity: 1; }
+
+.thumb-header {
+  height: 48px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; color: white; font-size: 15px; font-weight: 500;
+  flex-shrink: 0;
+}
+.thumb-header button {
+  background: none; border: none; color: white; font-size: 22px;
+  cursor: pointer; padding: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.thumb-grid {
+  flex: 1; overflow-y: auto; padding: 8px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px; align-content: start;
+  -webkit-overflow-scrolling: touch;
+}
+.thumb-item {
+  aspect-ratio: 16/9; border-radius: 8px; overflow: hidden;
+  cursor: pointer; position: relative; border: 2px solid transparent;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.thumb-item:active { transform: scale(0.95); }
+.thumb-item.active { border-color: #4a9eff; }
+.thumb-item img { width: 100%; height: 100%; object-fit: cover; }
+.thumb-item .thumb-num {
+  position: absolute; bottom: 4px; right: 6px;
+  background: rgba(0,0,0,0.7); color: white; font-size: 11px;
+  padding: 1px 6px; border-radius: 4px;
+}
+
+/* Loading indicator */
+.loading {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: #1a1a1a; z-index: 300; color: white; font-size: 16px;
+}
+.loading.hide { display: none; }
+
+/* Hide controls when idle */
+.viewer.idle .top-bar,
+.viewer.idle .toolbar,
+.viewer.idle .progress-bar,
+.viewer.idle .nav-btn { opacity: 0; pointer-events: none; }
+
+/* Desktop: hide nav buttons on small screens, show on hover */
+@media (min-width: 768px) {
+  .slide img { max-width: 90%; max-height: 90%; }
+  .nav-btn { width: 50px; height: 100px; font-size: 28px; }
+}
+
+/* Fullscreen adjustments */
+:fullscreen { background: #1a1a1a; }
+:-webkit-full-screen { background: #1a1a1a; }
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading">
+  <div style="text-align:center">
+    <div style="font-size:24px;margin-bottom:12px">...</div>
+    <div>正在加载</div>
+  </div>
+</div>
+
+<div class="viewer" id="viewer">
+  <div class="top-bar">
+    <span class="title">宝山高新技术产业园</span>
+    <span class="page-num" id="pageNum">1 / 24</span>
+  </div>
+
+  <button class="nav-btn prev" id="prevBtn" onclick="goTo(currentSlide-1)">&#10094;</button>
+  <button class="nav-btn next" id="nextBtn" onclick="goTo(currentSlide+1)">&#10095;</button>
+
+  <div class="slide-container" id="slideContainer"></div>
+
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+  <div class="toolbar">
+    <button onclick="goTo(0)" title="首页">&#x23EE;</button>
+    <button onclick="toggleThumbs()" title="目录">&#x2630;</button>
+    <button onclick="toggleFullscreen()" title="全屏">&#x26F6;</button>
+    <button onclick="goTo(totalSlides-1)" title="末页">&#x23ED;</button>
+  </div>
+</div>
+
+<div class="thumb-panel" id="thumbPanel">
+  <div class="thumb-header">
+    <button onclick="toggleThumbs()">&#10094;</button>
+    <span>目录</span>
+    <span style="width:38px"></span>
+  </div>
+  <div class="thumb-grid" id="thumbGrid"></div>
+</div>
+
+<script>
+const TOTAL = 24;
+const IMG_BASE = 'images/page_';
+let totalSlides = TOTAL;
+let currentSlide = 0;
+let slides = [];
+let touchStartX = 0, touchStartY = 0, touchDeltaX = 0, isSwiping = false;
+let idleTimer = null;
+
+// Preload images
+const images = [];
+let loaded = 0;
+
+function init() {
+  const container = document.getElementById('slideContainer');
+  
+  for (let i = 0; i < TOTAL; i++) {
+    const slide = document.createElement('div');
+    slide.className = 'slide';
+    const img = document.createElement('img');
+    img.src = IMG_BASE + (i + 1).toString().padStart(2, '0') + '.jpg';
+    img.alt = 'Page ' + (i + 1);
+    img.draggable = false;
+    images.push(img);
+    
+    img.onload = function() {
+      loaded++;
+      if (loaded >= TOTAL) {
+        document.getElementById('loading').classList.add('hide');
+      }
+    };
+    img.onerror = function() {
+      loaded++;
+      if (loaded >= TOTAL) {
+        document.getElementById('loading').classList.add('hide');
+      }
+    };
+    
+    slide.appendChild(img);
+    container.appendChild(slide);
+    slides.push(slide);
+  }
+  
+  // Build thumbnails
+  const grid = document.getElementById('thumbGrid');
+  for (let i = 0; i < TOTAL; i++) {
+    const item = document.createElement('div');
+    item.className = 'thumb-item' + (i === 0 ? ' active' : '');
+    item.onclick = function() { goTo(i); toggleThumbs(); };
+    
+    const thumb = document.createElement('img');
+    thumb.src = IMG_BASE + (i + 1).toString().padStart(2, '0') + '.jpg';
+    thumb.alt = 'Page ' + (i + 1);
+    thumb.loading = 'lazy';
+    
+    const num = document.createElement('span');
+    num.className = 'thumb-num';
+    num.textContent = i + 1;
+    
+    item.appendChild(thumb);
+    item.appendChild(num);
+    grid.appendChild(item);
+  }
+  
+  // Touch events
+  const sc = document.getElementById('slideContainer');
+  sc.addEventListener('touchstart', onTouchStart, { passive: true });
+  sc.addEventListener('touchmove', onTouchMove, { passive: false });
+  sc.addEventListener('touchend', onTouchEnd, { passive: true });
+  
+  // Mouse drag for desktop
+  sc.addEventListener('mousedown', onMouseDown);
+  
+  // Keyboard
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goTo(currentSlide - 1);
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') goTo(currentSlide + 1);
+    else if (e.key === 'Home') goTo(0);
+    else if (e.key === 'End') goTo(totalSlides - 1);
+    else if (e.key === 'Escape') { 
+      const panel = document.getElementById('thumbPanel');
+      if (panel.classList.contains('show')) toggleThumbs();
+    }
+  });
+  
+  // Tap to toggle controls
+  document.getElementById('viewer').addEventListener('click', function(e) {
+    if (e.target.closest('.nav-btn') || e.target.closest('.toolbar') || e.target.closest('.top-bar')) return;
+    resetIdle();
+  });
+  
+  updateSlides();
+  resetIdle();
+}
+
+function onTouchStart(e) {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+  touchDeltaX = 0;
+  isSwiping = false;
+}
+
+function onTouchMove(e) {
+  const dx = e.touches[0].clientX - touchStartX;
+  const dy = e.touches[0].clientY - touchStartY;
+  
+  if (!isSwiping && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+    isSwiping = true;
+  }
+  
+  if (isSwiping) {
+    e.preventDefault();
+    touchDeltaX = dx;
+    const current = slides[currentSlide];
+    const w = window.innerWidth;
+    current.style.transition = 'none';
+    current.style.transform = 'translateX(' + dx + 'px)';
+    current.style.opacity = 1 - Math.abs(dx) / w * 0.3;
+    
+    // Show peek of adjacent slide
+    if (dx < 0 && currentSlide < totalSlides - 1) {
+      slides[currentSlide + 1].style.transition = 'none';
+      slides[currentSlide + 1].style.transform = 'translateX(' + (w + dx) + 'px)';
+      slides[currentSlide + 1].style.opacity = 0.7 + dx / w * 0.3;
+    } else if (dx > 0 && currentSlide > 0) {
+      slides[currentSlide - 1].style.transition = 'none';
+      slides[currentSlide - 1].style.transform = 'translateX(' + (-w + dx) + 'px)';
+      slides[currentSlide - 1].style.opacity = 0.7 - dx / w * 0.3;
+    }
+  }
+}
+
+function onTouchEnd() {
+  if (!isSwiping) return;
+  const threshold = window.innerWidth * 0.2;
+  
+  if (touchDeltaX < -threshold && currentSlide < totalSlides - 1) {
+    goTo(currentSlide + 1);
+  } else if (touchDeltaX > threshold && currentSlide > 0) {
+    goTo(currentSlide - 1);
+  } else {
+    updateSlides();
+  }
+  isSwiping = false;
+  touchDeltaX = 0;
+}
+
+// Mouse drag
+let mouseDown = false, mouseStartX = 0, mouseDeltaX = 0;
+function onMouseDown(e) {
+  if (e.button !== 0) return;
+  mouseDown = true;
+  mouseStartX = e.clientX;
+  mouseDeltaX = 0;
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+}
+function onMouseMove(e) {
+  if (!mouseDown) return;
+  mouseDeltaX = e.clientX - mouseStartX;
+  const current = slides[currentSlide];
+  const w = window.innerWidth;
+  current.style.transition = 'none';
+  current.style.transform = 'translateX(' + mouseDeltaX + 'px)';
+  current.style.opacity = 1 - Math.abs(mouseDeltaX) / w * 0.3;
+  
+  if (mouseDeltaX < 0 && currentSlide < totalSlides - 1) {
+    slides[currentSlide + 1].style.transition = 'none';
+    slides[currentSlide + 1].style.transform = 'translateX(' + (w + mouseDeltaX) + 'px)';
+  } else if (mouseDeltaX > 0 && currentSlide > 0) {
+    slides[currentSlide - 1].style.transition = 'none';
+    slides[currentSlide - 1].style.transform = 'translateX(' + (-w + mouseDeltaX) + 'px)';
+  }
+}
+function onMouseUp() {
+  mouseDown = false;
+  document.removeEventListener('mousemove', onMouseMove);
+  document.removeEventListener('mouseup', onMouseUp);
+  const threshold = window.innerWidth * 0.15;
+  if (mouseDeltaX < -threshold && currentSlide < totalSlides - 1) goTo(currentSlide + 1);
+  else if (mouseDeltaX > threshold && currentSlide > 0) goTo(currentSlide - 1);
+  else updateSlides();
+}
+
+function goTo(idx) {
+  if (idx < 0 || idx >= totalSlides) return;
+  currentSlide = idx;
+  updateSlides();
+  resetIdle();
+}
+
+function updateSlides() {
+  const w = window.innerWidth;
+  slides.forEach(function(s, i) {
+    s.style.transition = 'transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.35s ease';
+    if (i === currentSlide) {
+      s.style.transform = 'translateX(0)';
+      s.style.opacity = '1';
+      s.style.zIndex = '2';
+    } else if (i < currentSlide) {
+      s.style.transform = 'translateX(-' + w + 'px)';
+      s.style.opacity = '0';
+      s.style.zIndex = '1';
+    } else {
+      s.style.transform = 'translateX(' + w + 'px)';
+      s.style.opacity = '0';
+      s.style.zIndex = '1';
+    }
+  });
+  
+  // Update UI
+  document.getElementById('pageNum').textContent = (currentSlide + 1) + ' / ' + totalSlides;
+  document.getElementById('progressFill').style.width = ((currentSlide + 1) / totalSlides * 100) + '%';
+  document.getElementById('prevBtn').disabled = currentSlide === 0;
+  document.getElementById('nextBtn').disabled = currentSlide === totalSlides - 1;
+  
+  // Update thumbnails
+  const items = document.querySelectorAll('.thumb-item');
+  items.forEach(function(item, i) {
+    item.classList.toggle('active', i === currentSlide);
+  });
+  
+  // Scroll active thumbnail into view
+  const grid = document.getElementById('thumbGrid');
+  const activeItem = grid.children[currentSlide];
+  if (activeItem) {
+    activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function toggleThumbs() {
+  const panel = document.getElementById('thumbPanel');
+  if (panel.classList.contains('show')) {
+    panel.classList.remove('show');
+    setTimeout(function() { panel.style.display = 'none'; }, 300);
+  } else {
+    panel.style.display = 'flex';
+    requestAnimationFrame(function() { panel.classList.add('show'); });
+    // Scroll to current
+    const grid = document.getElementById('thumbGrid');
+    const activeItem = grid.children[currentSlide];
+    if (activeItem) {
+      setTimeout(function() { activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100);
+    }
+  }
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  } else {
+    if (document.exitFullscreen) document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  }
+}
+
+function resetIdle() {
+  const viewer = document.getElementById('viewer');
+  viewer.classList.remove('idle');
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(function() { viewer.classList.add('idle'); }, 4000);
+}
+
+// Handle window resize
+window.addEventListener('resize', function() { updateSlides(); });
+
+init();
+</script>
+</body>
+</html>
