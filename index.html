@@ -177,11 +177,8 @@ html, body {
   <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
 
   <div class="toolbar">
-    <button onclick="goTo(0)" title="首页">&#x23EE;</button>
     <button onclick="toggleThumbs()" title="目录">&#x2630;</button>
     <button onclick="toggleFill()" title="放大/还原" id="fillBtn">&#x26F6;</button>
-    <button onclick="toggleFullscreen()" title="全屏">&#x2B1C;</button>
-    <button onclick="goTo(totalSlides-1)" title="末页">&#x23ED;</button>
   </div>
 </div>
 
@@ -402,6 +399,11 @@ function updateSlides() {
       s.style.transform = 'none';
       s.style.opacity = '1';
       s.style.zIndex = '2';
+      s.style.width = '100vw';
+      s.style.height = '100vh';
+      s.style.position = 'fixed';
+      s.style.top = '0';
+      s.style.left = '0';
       
       // Calculate scale to fill screen
       const imgW = 1920; // original image width (landscape)
@@ -419,11 +421,17 @@ function updateSlides() {
       img.style.transform = 'rotate(90deg)';
       img.style.transformOrigin = 'center center';
       img.style.boxShadow = 'none';
+      img.style.objectFit = 'cover';
     } else {
       // Normal mode: vertical slide positioning
       s.style.transform = '';
       s.style.opacity = '';
       s.style.zIndex = '';
+      s.style.width = '';
+      s.style.height = '';
+      s.style.position = '';
+      s.style.top = '';
+      s.style.left = '';
       
       const img = s.querySelector('img');
       img.style.maxWidth = '100%';
@@ -432,6 +440,7 @@ function updateSlides() {
       img.style.height = '';
       img.style.transform = '';
       img.style.boxShadow = '';
+      img.style.objectFit = '';
       
       if (i === currentSlide) {
         s.style.transform = 'translateY(0)';
